@@ -23,7 +23,7 @@ interface SettingsProviderProps {
 }
 
 const COLOR_OPTIONS = [
-  '#333333', // Default dark
+  '#000000', // Default black (changed from #333333 for better visibility)
   '#0A5F38', // Primary green
   '#B68D40', // Gold
   '#1E656D', // Teal

@@ -2,17 +2,25 @@
 import React from 'react';
 import { Info } from 'lucide-react';
 import { SurahDetail } from '@/services/quranApi';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface SurahInfoProps {
   surah: SurahDetail;
 }
 
 const SurahInfo: React.FC<SurahInfoProps> = ({ surah }) => {
+  const { fontColor } = useSettings();
+  
   return (
     <div className="mb-6 bg-white dark:bg-quran-dark rounded-xl p-4 shadow-md">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold">{surah.englishName}</h1>
-        <h2 className="text-xl font-bold arabic-text">{surah.name}</h2>
+        <h2 
+          className="text-xl font-bold arabic-text" 
+          style={{ color: fontColor }}
+        >
+          {surah.name}
+        </h2>
       </div>
       
       <div className="flex flex-wrap gap-2 items-center text-sm text-gray-600 dark:text-gray-300">
