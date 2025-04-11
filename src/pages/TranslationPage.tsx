@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Play, Pause, Bookmark, BookmarkCheck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SurahSelector from '@/components/SurahSelector';
-import { useSurahDetail } from '@/services/quranApi';
+import { useSurahDetail, useAudioPlayer, useBookmarks } from '@/services/quranApi';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useToast } from '@/hooks/use-toast';
 
 const TranslationPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,14 +15,61 @@ const TranslationPage = () => {
   const [selectedSurah, setSelectedSurah] = useState(initialSurah);
   const { surah, loading, error } = useSurahDetail(selectedSurah);
   const { fontSize, fontColor, showTranslation } = useSettings();
+  const { isPlaying, currentAyahNumber, playAyah, stopAudio, playSurah } = useAudioPlayer();
+  const { bookmarks, addBookmark, removeBookmark, isBookmarked } = useBookmarks();
+  const { toast } = useToast();
   
   const handleSurahChange = (surahNumber: number) => {
     setSelectedSurah(surahNumber);
     setSearchParams({ surah: surahNumber.toString() });
   };
   
+  const handleAyahClick = (audioUrl: string, ayahNumber: number) => {
+    if (isPlaying && currentAyahNumber === ayahNumber) {
+      stopAudio();
+    } else {
+      playAyah(audioUrl, ayahNumber);
+    }
+  };
+  
+  const handlePlaySurah = () => {
+    if (surah) {
+      if (isPlaying) {
+        stopAudio();
+        toast({
+          title: "Playback stopped",
+          description: `Stopped playing Surah ${surah.englishName}`,
+        });
+      } else {
+        playSurah(surah.ayahs);
+        toast({
+          title: "Playing Surah",
+          description: `Now playing Surah ${surah.englishName}`,
+        });
+      }
+    }
+  };
+  
+  const handleBookmarkToggle = (ayahNumber: number) => {
+    if (!surah) return;
+    
+    if (isBookmarked(surah.number, ayahNumber)) {
+      removeBookmark(surah.number, ayahNumber);
+      toast({
+        title: "Bookmark removed",
+        description: `Removed Surah ${surah.englishName}, Verse ${ayahNumber} from bookmarks`,
+      });
+    } else {
+      addBookmark(surah.number, ayahNumber);
+      toast({
+        title: "Bookmark added",
+        description: `Added Surah ${surah.englishName}, Verse ${ayahNumber} to bookmarks`,
+      });
+    }
+  };
+  
   return (
-    <Layout>
+    <Layout onPlayClick={handlePlaySurah} isPlaying={isPlaying}>
       <div>
         <h1 className="text-2xl font-bold mb-6">Translations</h1>
         
@@ -56,10 +105,33 @@ const TranslationPage = () => {
             <div className="space-y-4 mt-6">
               {surah.ayahs.map((ayah) => (
                 <div key={ayah.numberInSurah} className="pb-3 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                  <div className="flex items-center mb-2">
-                    <div className="w-7 h-7 flex items-center justify-center bg-quran-primary/10 dark:bg-quran-primary/20 rounded-full text-quran-primary dark:text-quran-secondary font-semibold text-xs mr-2">
-                      {ayah.numberInSurah}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <div className="w-7 h-7 flex items-center justify-center bg-quran-primary/10 dark:bg-quran-primary/20 rounded-full text-quran-primary dark:text-quran-secondary font-semibold text-xs mr-2">
+                        {ayah.numberInSurah}
+                      </div>
+                      <button 
+                        onClick={() => handleAyahClick(ayah.audioUrl || '', ayah.numberInSurah)} 
+                        className="text-quran-primary dark:text-quran-secondary hover:opacity-80 transition-opacity"
+                      >
+                        {currentAyahNumber === ayah.numberInSurah && isPlaying ? (
+                          <Pause className="w-5 h-5" />
+                        ) : (
+                          <Play className="w-5 h-5" />
+                        )}
+                      </button>
                     </div>
+                    
+                    <button
+                      onClick={() => handleBookmarkToggle(ayah.numberInSurah)}
+                      className="text-quran-secondary hover:opacity-80 transition-opacity"
+                    >
+                      {isBookmarked(surah.number, ayah.numberInSurah) ? (
+                        <BookmarkCheck className="w-5 h-5" />
+                      ) : (
+                        <Bookmark className="w-5 h-5" />
+                      )}
+                    </button>
                   </div>
                   
                   <p className="arabic-text text-right mb-2 leading-loose" 
@@ -71,6 +143,18 @@ const TranslationPage = () => {
                     <p className="text-gray-800 dark:text-gray-200" style={{ fontSize: `${fontSize - 2}px` }}>
                       {ayah.translation}
                     </p>
+                  )}
+                  
+                  {currentAyahNumber === ayah.numberInSurah && isPlaying && (
+                    <div className="mt-2">
+                      <div className="audio-wave flex items-center">
+                        <span className="h-2"></span>
+                        <span className="h-3"></span>
+                        <span className="h-4"></span>
+                        <span className="h-5"></span>
+                        <span className="h-3"></span>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}

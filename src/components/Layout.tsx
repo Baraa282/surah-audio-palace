@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Settings, 
-  GalleryVertical, 
+  Book, 
   PlayCircle,
   Bookmark,
   Search
@@ -30,8 +30,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onPlayClick, isPlaying }) => 
     { 
       id: 'translation',
       path: '/translation',
-      icon: <GalleryVertical className="w-6 h-6" />,
-      label: 'Translation'
+      icon: <Book className="w-6 h-6" />,
+      label: 'Quran'
     },
     { 
       id: 'play',
