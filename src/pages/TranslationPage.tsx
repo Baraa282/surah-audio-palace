@@ -12,7 +12,7 @@ const TranslationPage = () => {
   
   const [selectedSurah, setSelectedSurah] = useState(initialSurah);
   const { surah, loading, error } = useSurahDetail(selectedSurah);
-  const { fontSize } = useSettings();
+  const { fontSize, fontColor, showTranslation } = useSettings();
   
   const handleSurahChange = (surahNumber: number) => {
     setSelectedSurah(surahNumber);
@@ -47,7 +47,7 @@ const TranslationPage = () => {
           <div className="bg-white dark:bg-quran-dark rounded-xl p-4 shadow-md mb-4">
             <h2 className="text-xl font-bold mb-2 flex justify-between">
               <span>{surah.englishName}</span>
-              <span className="arabic-text">{surah.name}</span>
+              <span className="arabic-text" style={{ color: fontColor }}>{surah.name}</span>
             </h2>
             <p className="text-sm text-gray-500 mb-4">
               {surah.englishNameTranslation} • {surah.numberOfAyahs} Verses • {surah.revelationType}
@@ -62,7 +62,12 @@ const TranslationPage = () => {
                     </div>
                   </div>
                   
-                  {ayah.translation && (
+                  <p className="arabic-text text-right mb-2 leading-loose" 
+                     style={{ fontSize: `${fontSize}px`, color: fontColor }}>
+                    {ayah.text}
+                  </p>
+                  
+                  {showTranslation && ayah.translation && (
                     <p className="text-gray-800 dark:text-gray-200" style={{ fontSize: `${fontSize - 2}px` }}>
                       {ayah.translation}
                     </p>
