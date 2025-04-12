@@ -8,6 +8,7 @@ export const useAudioPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentAyahNumber, setCurrentAyahNumber] = useState<number | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     // Create audio element once on mount to avoid recreation issues
@@ -22,14 +23,42 @@ export const useAudioPlayer = () => {
       });
     }
     
+    // Try to handle autoplay restrictions by letting user interact first
+    document.addEventListener('click', initializeAudio, { once: true });
+    
     // Cleanup on unmount
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
       }
+      document.removeEventListener('click', initializeAudio);
     };
   }, []);
+  
+  // Function to initialize audio after user interaction
+  const initializeAudio = () => {
+    if (audioRef.current) {
+      // Create a short silent audio to initialize the audio context
+      audioRef.current.src = 'data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Immediately pause the silent audio
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+            }
+          })
+          .catch(err => {
+            console.log("Audio context couldn't be initialized:", err);
+            // Don't show error for initialization
+          });
+      }
+    }
+  };
 
   // Function to check if the browser supports the audio format
   const checkAudioCompatibility = () => {
@@ -66,6 +95,9 @@ export const useAudioPlayer = () => {
       // Set new source
       audioRef.current.src = audioUrl;
       
+      // Ensure audio isn't muted
+      audioRef.current.muted = false;
+      
       // Set up event handlers
       audioRef.current.onplay = () => {
         setIsPlaying(true);
@@ -77,12 +109,22 @@ export const useAudioPlayer = () => {
         setCurrentAyahNumber(null);
       };
       
-      // Load and play with proper error handling
+      // For iOS, we need to ensure volume is set
+      audioRef.current.volume = 1.0;
+      
+      // Load the audio first
       audioRef.current.load();
       
       // Use a timeout to ensure the audio has time to load before playing
       setTimeout(() => {
         if (audioRef.current) {
+          // For mobile devices, we need user interaction
+          const userInteracted = document.documentElement.classList.contains('user-interacted');
+          
+          if (!userInteracted) {
+            document.documentElement.classList.add('user-interacted');
+          }
+          
           const playPromise = audioRef.current.play();
           
           if (playPromise !== undefined) {
@@ -90,11 +132,21 @@ export const useAudioPlayer = () => {
               console.error('Failed to play audio:', err);
               setIsPlaying(false);
               setCurrentAyahNumber(null);
-              setAudioError('Audio playback failed. This might be due to browser restrictions. Try clicking again or use a different reciter.');
+              
+              if (err.name === 'NotSupportedError') {
+                setAudioError('Your browser blocked autoplay. Please tap the play button again or try a different reciter.');
+              } else if (err.name === 'AbortError') {
+                setAudioError('Audio playback was aborted. Please try again.');
+              } else if (err.name === 'NotAllowedError') {
+                // This is common on mobile devices without user interaction
+                setAudioError('Audio autoplay is not allowed by your browser. Please tap the play button again.');
+              } else {
+                setAudioError('Audio playback failed. This might be due to browser restrictions. Try clicking again or use a different reciter.');
+              }
             });
           }
         }
-      }, 100);
+      }, 300); // Increased timeout to ensure audio is loaded
     } catch (err) {
       console.error('Audio playback error:', err);
       setAudioError('Audio playback failed. This could be a browser restriction or network issue.');
@@ -140,7 +192,17 @@ export const useAudioPlayer = () => {
             audioRef.current.pause();
           }
           
-          audioRef.current.src = ayah.audioUrl || '';
+          // Ensure we have a valid audio URL
+          if (!ayah.audioUrl) {
+            console.error('Missing audio URL for ayah:', ayah.numberInSurah);
+            currentIndex++;
+            playNextAyah();
+            return;
+          }
+          
+          audioRef.current.src = ayah.audioUrl;
+          audioRef.current.volume = 1.0;
+          audioRef.current.muted = false;
           
           audioRef.current.onended = () => {
             currentIndex++;
@@ -157,7 +219,7 @@ export const useAudioPlayer = () => {
           setCurrentAyahNumber(ayah.numberInSurah);
           setIsPlaying(true);
           
-          // Load and play with better error handling
+          // Load the audio first
           audioRef.current.load();
           
           // Use a timeout to ensure the audio has time to load
@@ -168,13 +230,21 @@ export const useAudioPlayer = () => {
               if (playPromise !== undefined) {
                 playPromise.catch(err => {
                   console.error('Failed to play surah audio:', err);
-                  setAudioError('Audio playback failed. This might be due to browser restrictions.');
+                  
+                  if (err.name === 'NotSupportedError') {
+                    setAudioError('Your browser blocked autoplay. Please tap the play button again or try a different reciter.');
+                  } else if (err.name === 'NotAllowedError') {
+                    setAudioError('Audio autoplay is not allowed by your browser. Please tap the play button after page load.');
+                  } else {
+                    setAudioError('Audio playback failed. This might be due to browser restrictions.');
+                  }
+                  
                   currentIndex++;
                   playNextAyah();
                 });
               }
             }
-          }, 100);
+          }, 300);
         } catch (err) {
           console.error('Error in playSurah:', err);
           setAudioError('Error playing surah. Please try again later.');
@@ -190,12 +260,22 @@ export const useAudioPlayer = () => {
     playNextAyah();
   };
 
+  // Added function to toggle mute state
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !audioRef.current.muted;
+      setIsMuted(!isMuted);
+    }
+  };
+
   return {
     isPlaying,
     currentAyahNumber,
     playAyah,
     stopAudio,
     playSurah,
-    audioError
+    audioError,
+    isMuted,
+    toggleMute
   };
 };

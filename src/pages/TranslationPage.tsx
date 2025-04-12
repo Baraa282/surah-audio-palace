@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Play, Pause, Bookmark, BookmarkCheck, AlertCircle } from 'lucide-react';
+import { Play, Pause, Bookmark, BookmarkCheck, AlertCircle, Volume2, VolumeX } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SurahSelector from '@/components/SurahSelector';
 import { useSurahDetail, useAudioPlayer, useBookmarks } from '@/services/quranApi';
@@ -9,6 +9,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/hooks/use-toast';
 import AyahList from '@/components/AyahList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 const TranslationPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,7 +18,7 @@ const TranslationPage = () => {
   const [selectedSurah, setSelectedSurah] = useState(initialSurah);
   const { translationEdition, reciterEdition } = useSettings();
   const { surah, loading, error } = useSurahDetail(selectedSurah, translationEdition, reciterEdition);
-  const { isPlaying, currentAyahNumber, playAyah, stopAudio, playSurah, audioError } = useAudioPlayer();
+  const { isPlaying, currentAyahNumber, playAyah, stopAudio, playSurah, audioError, isMuted, toggleMute } = useAudioPlayer();
   const { bookmarks, addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const { toast } = useToast();
   
@@ -87,7 +88,18 @@ const TranslationPage = () => {
         {audioError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{audioError}</AlertDescription>
+            <AlertDescription className="flex items-center justify-between">
+              <span>{audioError}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={toggleMute}
+                className="ml-2"
+              >
+                {isMuted ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                {isMuted ? "Unmute" : "Mute"}
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
         
