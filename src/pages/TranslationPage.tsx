@@ -7,14 +7,15 @@ import SurahSelector from '@/components/SurahSelector';
 import { useSurahDetail, useAudioPlayer, useBookmarks } from '@/services/quranApi';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/hooks/use-toast';
+import AyahList from '@/components/AyahList';
 
 const TranslationPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSurah = parseInt(searchParams.get('surah') || '1', 10);
   
   const [selectedSurah, setSelectedSurah] = useState(initialSurah);
-  const { surah, loading, error } = useSurahDetail(selectedSurah);
-  const { fontSize, fontColor, showTranslation } = useSettings();
+  const { translationEdition, reciterEdition } = useSettings();
+  const { surah, loading, error } = useSurahDetail(selectedSurah, translationEdition, reciterEdition);
   const { isPlaying, currentAyahNumber, playAyah, stopAudio, playSurah } = useAudioPlayer();
   const { bookmarks, addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const { toast } = useToast();
@@ -96,69 +97,20 @@ const TranslationPage = () => {
           <div className="bg-white dark:bg-quran-dark rounded-xl p-4 shadow-md mb-4">
             <h2 className="text-xl font-bold mb-2 flex justify-between">
               <span>{surah.englishName}</span>
-              <span className="arabic-text" style={{ color: fontColor }}>{surah.name}</span>
+              <span className="arabic-text">{surah.name}</span>
             </h2>
             <p className="text-sm text-gray-500 mb-4">
               {surah.englishNameTranslation} • {surah.numberOfAyahs} Verses • {surah.revelationType}
             </p>
             
-            <div className="space-y-4 mt-6">
-              {surah.ayahs.map((ayah) => (
-                <div key={ayah.numberInSurah} className="pb-3 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center">
-                      <div className="w-7 h-7 flex items-center justify-center bg-quran-primary/10 dark:bg-quran-primary/20 rounded-full text-quran-primary dark:text-quran-secondary font-semibold text-xs mr-2">
-                        {ayah.numberInSurah}
-                      </div>
-                      <button 
-                        onClick={() => handleAyahClick(ayah.audioUrl || '', ayah.numberInSurah)} 
-                        className="text-quran-primary dark:text-quran-secondary hover:opacity-80 transition-opacity"
-                      >
-                        {currentAyahNumber === ayah.numberInSurah && isPlaying ? (
-                          <Pause className="w-5 h-5" />
-                        ) : (
-                          <Play className="w-5 h-5" />
-                        )}
-                      </button>
-                    </div>
-                    
-                    <button
-                      onClick={() => handleBookmarkToggle(ayah.numberInSurah)}
-                      className="text-quran-secondary hover:opacity-80 transition-opacity"
-                    >
-                      {isBookmarked(surah.number, ayah.numberInSurah) ? (
-                        <BookmarkCheck className="w-5 h-5" />
-                      ) : (
-                        <Bookmark className="w-5 h-5" />
-                      )}
-                    </button>
-                  </div>
-                  
-                  <p className="arabic-text text-right mb-2 leading-loose" 
-                     style={{ fontSize: `${fontSize}px`, color: fontColor }}>
-                    {ayah.text}
-                  </p>
-                  
-                  {showTranslation && ayah.translation && (
-                    <p className="text-gray-800 dark:text-gray-200" style={{ fontSize: `${fontSize - 2}px` }}>
-                      {ayah.translation}
-                    </p>
-                  )}
-                  
-                  {currentAyahNumber === ayah.numberInSurah && isPlaying && (
-                    <div className="mt-2">
-                      <div className="audio-wave flex items-center">
-                        <span className="h-2"></span>
-                        <span className="h-3"></span>
-                        <span className="h-4"></span>
-                        <span className="h-5"></span>
-                        <span className="h-3"></span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            <AyahList 
+              ayahs={surah.ayahs}
+              currentAyah={currentAyahNumber}
+              isPlaying={isPlaying}
+              onAyahClick={handleAyahClick}
+              isBookmarked={(ayahNumber) => isBookmarked(surah.number, ayahNumber)}
+              onBookmarkToggle={handleBookmarkToggle}
+            />
           </div>
         ) : null}
       </div>

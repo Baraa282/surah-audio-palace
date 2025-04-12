@@ -56,7 +56,7 @@ export const useAllSurahs = () => {
 };
 
 // Custom hook to fetch a specific Surah with its Ayahs
-export const useSurahDetail = (surahNumber: number, edition: string = 'en.asad') => {
+export const useSurahDetail = (surahNumber: number, translationEdition: string = 'en.asad', reciterEdition: string = 'ar.alafasy') => {
   const [surah, setSurah] = useState<SurahDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,20 +66,23 @@ export const useSurahDetail = (surahNumber: number, edition: string = 'en.asad')
       try {
         setLoading(true);
         
-        // Fetch Surah in Arabic
-        const arabicResponse = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/ar.alafasy`);
+        // Fetch Surah in Arabic with the selected reciter
+        const arabicResponse = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${reciterEdition}`);
         const arabicData = await arabicResponse.json();
         
         // Fetch translation
-        const translationResponse = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${edition}`);
+        const translationResponse = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/${translationEdition}`);
         const translationData = await translationResponse.json();
         
         if (arabicData.code === 200 && translationData.code === 200) {
+          // Get the base audio URL for the selected reciter
+          const reciterBaseUrl = `https://cdn.islamic.network/quran/audio/128/${reciterEdition.replace('ar.', '')}`;
+          
           // Combine Arabic text with translation
           const combinedAyahs = arabicData.data.ayahs.map((ayah: Ayah, index: number) => ({
             ...ayah,
             translation: translationData.data.ayahs[index].text,
-            audioUrl: `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayah.number}.mp3`
+            audioUrl: `${reciterBaseUrl}/${ayah.number}.mp3`
           }));
           
           setSurah({
@@ -100,7 +103,7 @@ export const useSurahDetail = (surahNumber: number, edition: string = 'en.asad')
     if (surahNumber > 0) {
       fetchSurahDetail();
     }
-  }, [surahNumber, edition]);
+  }, [surahNumber, translationEdition, reciterEdition]);
 
   return { surah, loading, error };
 };
