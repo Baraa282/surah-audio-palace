@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Surah, SurahDetail } from '../types/quranTypes';
+import { Surah, SurahDetail, Ayah } from '../types/quranTypes';
 
 // Custom hook to fetch all Surahs
 export const useAllSurahs = () => {
