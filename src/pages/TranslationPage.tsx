@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Play, Pause, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Play, Pause, Bookmark, BookmarkCheck, AlertCircle } from 'lucide-react';
 import Layout from '@/components/Layout';
 import SurahSelector from '@/components/SurahSelector';
 import { useSurahDetail, useAudioPlayer, useBookmarks } from '@/services/quranApi';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/hooks/use-toast';
 import AyahList from '@/components/AyahList';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const TranslationPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -16,9 +17,16 @@ const TranslationPage = () => {
   const [selectedSurah, setSelectedSurah] = useState(initialSurah);
   const { translationEdition, reciterEdition } = useSettings();
   const { surah, loading, error } = useSurahDetail(selectedSurah, translationEdition, reciterEdition);
-  const { isPlaying, currentAyahNumber, playAyah, stopAudio, playSurah } = useAudioPlayer();
+  const { isPlaying, currentAyahNumber, playAyah, stopAudio, playSurah, audioError } = useAudioPlayer();
   const { bookmarks, addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const { toast } = useToast();
+  
+  // Clear audio error when changing surah or reciter
+  useEffect(() => {
+    if (audioError) {
+      stopAudio();
+    }
+  }, [selectedSurah, reciterEdition]);
   
   const handleSurahChange = (surahNumber: number) => {
     setSelectedSurah(surahNumber);
@@ -75,6 +83,13 @@ const TranslationPage = () => {
         <h1 className="text-2xl font-bold mb-6">Translations</h1>
         
         <SurahSelector onSurahSelect={handleSurahChange} selectedSurah={selectedSurah} />
+        
+        {audioError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{audioError}</AlertDescription>
+          </Alert>
+        )}
         
         {loading ? (
           <div className="text-center py-10">
