@@ -11,7 +11,16 @@ export const useAudioPlayer = () => {
 
   useEffect(() => {
     // Create audio element once on mount to avoid recreation issues
-    audioRef.current = new Audio();
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      
+      // Set up global error handler
+      audioRef.current.addEventListener('error', (e) => {
+        console.error('Audio element error:', e);
+        setIsPlaying(false);
+        setAudioError('Unable to play audio. Please try a different reciter or check your connection.');
+      });
+    }
     
     // Cleanup on unmount
     return () => {
@@ -22,7 +31,19 @@ export const useAudioPlayer = () => {
     };
   }, []);
 
+  // Function to check if the browser supports the audio format
+  const checkAudioCompatibility = () => {
+    const audio = document.createElement('audio');
+    return !!audio.canPlayType('audio/mpeg');
+  };
+
   const playAyah = (audioUrl: string, ayahNumber: number) => {
+    // Check if audio is supported first
+    if (!checkAudioCompatibility()) {
+      setAudioError('Your browser does not support audio playback. Please try a different browser.');
+      return;
+    }
+    
     // If already playing the same ayah, stop it
     if (isPlaying && currentAyahNumber === ayahNumber && audioRef.current) {
       stopAudio();
@@ -34,6 +55,9 @@ export const useAudioPlayer = () => {
     }
     
     try {
+      // Reset error state
+      setAudioError(null);
+      
       // Stop any current playback
       if (audioRef.current.src) {
         audioRef.current.pause();
@@ -46,7 +70,6 @@ export const useAudioPlayer = () => {
       audioRef.current.onplay = () => {
         setIsPlaying(true);
         setCurrentAyahNumber(ayahNumber);
-        setAudioError(null);
       };
       
       audioRef.current.onended = () => {
@@ -54,27 +77,28 @@ export const useAudioPlayer = () => {
         setCurrentAyahNumber(null);
       };
       
-      audioRef.current.onerror = (e) => {
-        console.error('Error playing audio', e);
-        setIsPlaying(false);
-        setCurrentAyahNumber(null);
-        setAudioError('Unable to play audio. Please try a different reciter.');
-      };
-      
-      // Load and play
+      // Load and play with proper error handling
       audioRef.current.load();
-      const playPromise = audioRef.current.play();
       
-      // Handle play promise rejection (common in browsers that restrict autoplay)
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.error('Failed to play audio:', err);
-          setAudioError('Playback failed. Please try clicking again or try a different reciter.');
-        });
-      }
+      // Use a timeout to ensure the audio has time to load before playing
+      setTimeout(() => {
+        if (audioRef.current) {
+          const playPromise = audioRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(err => {
+              console.error('Failed to play audio:', err);
+              setIsPlaying(false);
+              setCurrentAyahNumber(null);
+              setAudioError('Audio playback failed. This might be due to browser restrictions. Try clicking again or use a different reciter.');
+            });
+          }
+        }
+      }, 100);
     } catch (err) {
       console.error('Audio playback error:', err);
-      setAudioError('Audio playback is not supported in this browser or environment.');
+      setAudioError('Audio playback failed. This could be a browser restriction or network issue.');
+      setIsPlaying(false);
     }
   };
 
@@ -89,7 +113,16 @@ export const useAudioPlayer = () => {
   };
 
   const playSurah = (ayahs: Ayah[]) => {
+    // Check if audio is supported first
+    if (!checkAudioCompatibility()) {
+      setAudioError('Your browser does not support audio playback. Please try a different browser.');
+      return;
+    }
+    
     if (ayahs.length === 0) return;
+    
+    // Reset error state
+    setAudioError(null);
     
     let currentIndex = 0;
     
@@ -116,6 +149,7 @@ export const useAudioPlayer = () => {
           
           audioRef.current.onerror = () => {
             console.error('Error playing ayah:', ayah.numberInSurah);
+            setAudioError('Error playing audio. Please try a different reciter.');
             currentIndex++;
             playNextAyah();
           };
@@ -123,19 +157,27 @@ export const useAudioPlayer = () => {
           setCurrentAyahNumber(ayah.numberInSurah);
           setIsPlaying(true);
           
-          // Load and play
+          // Load and play with better error handling
           audioRef.current.load();
-          const playPromise = audioRef.current.play();
           
-          if (playPromise !== undefined) {
-            playPromise.catch(err => {
-              console.error('Failed to play surah audio:', err);
-              currentIndex++;
-              playNextAyah();
-            });
-          }
+          // Use a timeout to ensure the audio has time to load
+          setTimeout(() => {
+            if (audioRef.current) {
+              const playPromise = audioRef.current.play();
+              
+              if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                  console.error('Failed to play surah audio:', err);
+                  setAudioError('Audio playback failed. This might be due to browser restrictions.');
+                  currentIndex++;
+                  playNextAyah();
+                });
+              }
+            }
+          }, 100);
         } catch (err) {
           console.error('Error in playSurah:', err);
+          setAudioError('Error playing surah. Please try again later.');
           currentIndex++;
           playNextAyah();
         }
